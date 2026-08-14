@@ -1,7 +1,11 @@
-import { Elysia } from "elysia";
+import "./config/firebase";
 
-const app = new Elysia().get("/", () => "Hello Elysia").listen(3000);
+import { app } from "./app";
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
+const port = Number(process.env.PORT) || 3000;
+
+app.listen(port, () => {
+  console.log(`🚀 Event Challenge API running at http://localhost:${port}`);
+  console.log(`📄 Swagger docs at http://localhost:${port}/docs`);
+  console.log(`↪ Legacy Swagger path redirects from http://localhost:${port}/swagger`);
+});

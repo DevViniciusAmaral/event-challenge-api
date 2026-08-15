@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: event-challenge-api
+    runtime: docker
+    repo: https://github.com/DevViniciusAmaral/event-challenge-api
+    plan: starter
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ORGANIZER_ID
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+    autoDeploy: yes
+    dockerCommand: bun run src/index.ts
+    healthCheckPath: /docs/json

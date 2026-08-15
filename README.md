@@ -68,6 +68,60 @@ tickets/
   {ticketId}    → dados do ingresso
 ```
 
+## Deploy no Render
+
+O projeto já está preparado para subir no **Render** com o runtime nativo via **Docker + Bun**.
+
+### Estratégia adotada
+
+Para evitar surpresas com versões de runtime do Render, foi preparado um **Dockerfile multi-stage baseado em `oven/bun:1.3.14-alpine`**. Ele roda os testes na etapa `prerelease` e publica só os artefatos de produção (sem `devDependencies`) na etapa final, rodando como usuário `bun` (menos privilégios).
+
+Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infraestrutura como Código**, com todas as variáveis esperadas já declaradas (basta preencher no dashboard).
+
+### Passo a passo
+
+1. **Commit e push** das alterações atuais (incluindo `Dockerfile`, `.dockerignore`, `render.yaml`).
+
+2. **Opção A — Render Blueprint (recomendado):**
+   - No dashboard do Render, clique em **YAML** > **Deploy from YAML**
+   - Cole o conteúdo de `render.yaml` (ou aponte para o repositório + caminho do arquivo)
+   - **Ajuste `repo:`** para a URL real do seu repositório (está com placeholder `your-org`)
+   - Preencha as variáveis sensíveis marcadas com `sync: false`
+
+3. **Opção B — Web Service manual:**
+   - Clique em **New +** > **Web Service** e selecione o repositório
+   - **Runtime:** escolha **Docker** (não Bun nativo)
+   - **Branch:** `main` (ou a que preferir)
+   - **Root Directory:** `.`
+   - **Dockerfile Path:** `./Dockerfile`
+   - **Build Command:** (automático pelo Dockerfile)
+   - **Start Command:** (automático pelo `ENTRYPOINT`)
+   - **Instance Size:** **Starter** ou superior (Firebase Admin SDK gasta um pouco de memória no cold start)
+
+4. **Variáveis de ambiente obrigatórias (Render Dashboard > Environment):**
+
+| Variável | Exemplo / dica |
+|---|---|
+| `PORT` | `3000` (porta exposta no Dockerfile) |
+| `CORS_ORIGIN` | Ex: `https://seu-frontend.onrender.com` ou `*` em testes |
+| `ORGANIZER_ID` | ID do organizador padrão (enquanto sem auth) |
+| `FIREBASE_PROJECT_ID` | `meu-projeto-123ab` |
+| `FIREBASE_CLIENT_EMAIL` | `firebase-adminsdk@meu-projeto-123ab.iam.gserviceaccount.com` |
+| `FIREBASE_PRIVATE_KEY` | **Cole a chave JSON inteira** (com `\n` ou quebras de linha). O código já faz `.replace(/\\n/g, "\n")`. |
+
+5. **Health check:** O Render usará o caminho `/docs/json` (Swagger OpenAPI JSON) que sempre retorna `200`. Alternativamente, pode trocar por `/api/events` se preferir.
+
+6. **Primeiro deploy:** Ao terminar, acesse `https://<seu-servico>.onrender.com/docs` — se abrir o Swagger, deu certo.
+
+### Dicas importantes
+
+- **Cold starts:** Render pausa serviços do plano Starter sem tráfego por 15 min. O primeiro request pode demorar ~5–15s; os demais são rápidos. Para evitar, suba para plano de pagamento ou configure um ping cron (UptimeRobot etc.).
+- **Firebase Private Key:** Copie exatamente o valor do JSON baixado. Não precisa escapar quebras de linha manualmente, o setup já trata isso.
+- **Bun.lock:** O Dockerfile usa `bun install --frozen-lockfile`. **Sempre** rode `bun install` após mudar dependências para atualizar o `bun.lockb` (ou builds falharão).
+- **`render.yaml` Blueprint:** Ele foi criado com runtime `docker`. Se você quiser testar o runtime **Bun nativo** do Render (beta), remova o `runtime: docker` e use `buildCommand: bun install` + `startCommand: bun start`.
+
+---
+
 ## Endpoints
 
 ### Eventos

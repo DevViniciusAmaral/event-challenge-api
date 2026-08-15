@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../config/firebase";
 import { serializeRecord } from "../../shared/serialize";
-import type { FirestoreTicket, Ticket, CreateTicketInput } from "./ticket.types";
+import type { Ticket, CreateTicketInput } from "./ticket.types";
 
 const COLLECTION = "tickets";
 
@@ -17,7 +17,7 @@ function generateTicketCode(): string {
 export async function findTicketById(id: string): Promise<Ticket | null> {
   const doc = await db.collection(COLLECTION).doc(id).get();
   if (!doc.exists) return null;
-  return serializeRecord({ id: doc.id, ...doc.data() } as FirestoreTicket) as Ticket;
+  return serializeRecord({ id: doc.id, ...doc.data() } as any) as unknown as Ticket;
 }
 
 export async function findTicketByCode(code: string): Promise<Ticket | null> {
@@ -29,7 +29,7 @@ export async function findTicketByCode(code: string): Promise<Ticket | null> {
 
   if (snapshot.empty) return null;
   const doc = snapshot.docs[0];
-  return serializeRecord({ id: doc.id, ...doc.data() } as FirestoreTicket) as Ticket;
+  return serializeRecord({ id: doc.id, ...doc.data() } as any) as unknown as Ticket;
 }
 
 export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
@@ -47,7 +47,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   await ref.set(data);
 
   const created = await ref.get();
-  return serializeRecord({ id: created.id, ...created.data() } as FirestoreTicket) as Ticket;
+  return serializeRecord({ id: created.id, ...created.data() } as any) as unknown as Ticket;
 }
 
 export async function markTicketAsUsed(id: string): Promise<void> {

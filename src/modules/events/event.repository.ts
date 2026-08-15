@@ -35,13 +35,13 @@ export async function findPublishedEvents(): Promise<Event[]> {
     snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as FirestoreEvent)
   );
 
-  return serializeRecords(events) as Event[];
+  return serializeRecords(events as any) as unknown as Event[];
 }
 
 export async function findEventById(id: string): Promise<Event | null> {
   const doc = await db.collection(COLLECTION).doc(id).get();
   if (!doc.exists) return null;
-  return serializeRecord({ id: doc.id, ...doc.data() } as FirestoreEvent) as Event;
+  return serializeRecord({ id: doc.id, ...doc.data() } as any) as unknown as Event;
 }
 
 export async function findEventsByOrganizer(organizerId: string): Promise<Event[]> {
@@ -54,7 +54,7 @@ export async function findEventsByOrganizer(organizerId: string): Promise<Event[
     snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as FirestoreEvent)
   );
 
-  return serializeRecords(events) as Event[];
+  return serializeRecords(events as any) as unknown as Event[];
 }
 
 export async function createEvent(
@@ -76,7 +76,7 @@ export async function createEvent(
   await ref.set(data);
 
   const created = await ref.get();
-  return serializeRecord({ id: created.id, ...created.data() } as FirestoreEvent) as Event;
+  return serializeRecord({ id: created.id, ...created.data() } as any) as unknown as Event;
 }
 
 export async function publishEvent(id: string): Promise<Event | null> {
@@ -90,7 +90,7 @@ export async function publishEvent(id: string): Promise<Event | null> {
   });
 
   const updated = await ref.get();
-  return serializeRecord({ id: updated.id, ...updated.data() } as FirestoreEvent) as Event;
+  return serializeRecord({ id: updated.id, ...updated.data() } as any) as unknown as Event;
 }
 
 export async function updateEventAvailableTickets(
@@ -107,7 +107,7 @@ export async function updateEventAvailableTickets(
   });
 
   const updated = await ref.get();
-  return serializeRecord({ id: updated.id, ...updated.data() } as FirestoreEvent) as Event;
+  return serializeRecord({ id: updated.id, ...updated.data() } as any) as unknown as Event;
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {

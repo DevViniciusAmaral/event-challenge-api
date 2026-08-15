@@ -13,7 +13,6 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
         const result = await eventService.listPublishedEvents(query.search);
         return result;
       } catch (err) {
-        console.error("[GET /api/events]", err);
         set.status = 500;
         return internalError();
       }
@@ -39,7 +38,6 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
         }
         return event;
       } catch (err) {
-        console.error("[GET /api/events/:id]", err);
         set.status = 500;
         return internalError();
       }
@@ -60,7 +58,6 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
         set.status = 201;
         return event;
       } catch (err) {
-        console.error("[POST /api/events]", err);
         set.status = 500;
         return internalError();
       }
@@ -84,7 +81,6 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
         }
         return event;
       } catch (err) {
-        console.error("[PATCH /api/events/:id/publish]", err);
         set.status = 500;
         return internalError();
       }
@@ -119,7 +115,6 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
         set.status = 204;
         return null;
       } catch (err) {
-        console.error("[DELETE /api/events/:id]", err);
         set.status = 500;
         return internalError();
       }
@@ -150,7 +145,6 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
         set.status = 201;
         return result.ticket;
       } catch (err) {
-        console.error("[POST /api/events/:id/tickets]", err);
         set.status = 500;
         return internalError();
       }

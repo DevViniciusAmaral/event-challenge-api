@@ -51,7 +51,13 @@ describe("App routes", () => {
       data: [
         {
           id: "event-1",
-          title: "Festival",
+          movie: { name: "Matrix", youtubeUrl: "https://youtu.be/abc", description: "Filme" },
+          date: "2026-12-20",
+          hours: "20:00",
+          local: "Cinema",
+          capacity: 100,
+          price: 50,
+          availableTickets: 90,
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },
@@ -62,14 +68,12 @@ describe("App routes", () => {
       id === "event-1"
         ? {
             id,
-            title: "Festival",
-            description: "Evento teste",
+            movie: { name: "Matrix", youtubeUrl: "https://youtu.be/abc", description: "Filme" },
             date: "2026-12-20",
-            time: "20:00",
-            venue: "Centro",
-            address: "Rua A",
+            hours: "20:00",
+            local: "Cinema Central",
             capacity: 100,
-            ticketPrice: 50,
+            price: 50,
             status: "published",
             organizerId: "default-organizer",
             ticketsSold: 10,
@@ -98,7 +102,7 @@ describe("App routes", () => {
     listOrganizerEventsImpl = async () => [
       {
         id: "event-1",
-        title: "Festival",
+        movie: { name: "Matrix", youtubeUrl: "https://youtu.be/abc", description: "Filme" },
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
@@ -136,10 +140,10 @@ describe("App routes", () => {
             updatedAt: "2026-01-01T00:00:00.000Z",
             event: {
               id: "event-1",
-              title: "Festival",
+              title: "Matrix",
               date: "2026-12-20",
-              time: "20:00",
-              venue: "Centro",
+              hours: "20:00",
+              local: "Cinema",
             },
           }
         : null;
@@ -151,7 +155,7 @@ describe("App routes", () => {
               id: "ticket-1",
               code,
               buyerName: "Ana",
-              event: { id: "event-1", title: "Festival" },
+              event: { id: "event-1", title: "Matrix" },
             },
           }
         : { valid: false, message: "Ingresso inválido." };
@@ -173,7 +177,7 @@ describe("App routes", () => {
 
   test("GET /api/events returns published events", async () => {
     const response = await app.handle(
-      new Request("http://localhost/api/events?search=festival")
+      new Request("http://localhost/api/events?search=matrix")
     );
 
     expect(response.status).toBe(200);
@@ -182,7 +186,7 @@ describe("App routes", () => {
       total: number;
     };
     expect(json.total).toBe(1);
-    expect(json.data[0]).toMatchObject({ id: "event-1", title: "Festival" });
+    expect(json.data[0]).toMatchObject({ id: "event-1", movie: { name: "Matrix" } });
     expect(hasStringTimestamps(json.data[0])).toBe(true);
   });
 
@@ -220,15 +224,16 @@ describe("App routes", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          title: "Novo Evento",
-          description: "Descrição",
-          imageUrl: "https://example.com/event.jpg",
+          movie: {
+            name: "Matrix",
+            youtubeUrl: "https://youtu.be/abc",
+            description: "Clássico de ficção científica",
+          },
           date: "2026-12-20",
-          time: "20:00",
-          venue: "Centro",
-          address: "Rua A",
+          hours: "20:00",
+          local: "Cinema Central",
           capacity: 100,
-          ticketPrice: 50,
+          price: 50,
         }),
       })
     );
@@ -383,7 +388,7 @@ describe("App routes", () => {
       total: number;
     };
     expect(json.total).toBe(1);
-    expect(json.data[0]).toMatchObject({ id: "event-1", title: "Festival" });
+    expect(json.data[0]).toMatchObject({ id: "event-1", movie: { name: "Matrix" } });
     expect(hasStringTimestamps(json.data[0])).toBe(true);
   });
 

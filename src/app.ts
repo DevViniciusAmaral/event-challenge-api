@@ -11,10 +11,7 @@ const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:3000";
 export const app = new Elysia()
   .use(
     cors({
-      origin: corsOrigin,
-      methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-      credentials: true,
+      origin: "*",
     })
   )
   .use(

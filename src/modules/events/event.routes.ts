@@ -19,7 +19,7 @@ export const eventRoutes = new Elysia({ prefix: "/events" })
     },
     {
       query: t.Object({
-        search: t.Optional(t.String({ description: "Busca por título, descrição ou local" })),
+        search: t.Optional(t.String({ description: "Busca por nome do movie, descrição ou local" })),
       }),
       detail: {
         summary: "Listar eventos publicados",

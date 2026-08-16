@@ -7,7 +7,7 @@ import type { Ticket } from "./ticket.types";
 import type { Event, FirestoreEvent } from "../events/event.types";
 
 export interface TicketWithEvent extends Ticket {
-  event: Pick<Event, "id" | "title" | "date" | "time" | "venue">;
+  event: Pick<Event, "id" | "date" | "hours" | "local"> & { title: string };
 }
 
 export interface PurchaseTicketInput {
@@ -68,7 +68,7 @@ export async function purchaseTicket(
         buyerName: input.buyerName,
         buyerEmail: input.buyerEmail,
         quantity: input.quantity,
-        totalPrice: parseFloat((event.ticketPrice * input.quantity).toFixed(2)),
+        totalPrice: parseFloat((event.price * input.quantity).toFixed(2)),
         status: "valid" as const,
         createdAt: now,
         updatedAt: now,
@@ -82,7 +82,7 @@ export async function purchaseTicket(
         updatedAt: now,
       });
 
-      return { id: newTicketRef.id, ...ticketData } as Ticket;
+      return { id: newTicketRef.id, ...ticketData } as any;
     });
 
     if (!createdTicketId) {
@@ -119,8 +119,8 @@ export async function getTicketWithEvent(
 
   const event = await eventRepo.findEventById(ticket.eventId);
   const eventSummary = event
-    ? { id: event.id, title: event.title, date: event.date, time: event.time, venue: event.venue }
-    : { id: ticket.eventId, title: "Evento não encontrado", date: "", time: "", venue: "" };
+    ? { id: event.id, title: event.movie.name, date: event.date, hours: event.hours, local: event.local }
+    : { id: ticket.eventId, title: "Evento não encontrado", date: "", hours: "", local: "" };
 
   return serializeDeep({ ...ticket, event: eventSummary });
 }
@@ -147,7 +147,7 @@ export async function validateTicket(code: string): Promise<
 
   const event = await eventRepo.findEventById(ticket.eventId);
   const eventSummary = event
-    ? { id: event.id, title: event.title }
+    ? { id: event.id, title: event.movie.name }
     : { id: ticket.eventId, title: "Evento não encontrado" };
 
   return {

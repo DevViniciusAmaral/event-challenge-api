@@ -2,17 +2,20 @@ import type { Timestamp } from "firebase-admin/firestore";
 
 export type EventStatus = "draft" | "published";
 
+export interface EventMovie {
+  name: string;
+  youtubeUrl: string;
+  description: string;
+}
+
 export interface FirestoreEvent {
   id: string;
-  title: string;
-  description: string;
-  imageUrl: string;
+  movie: EventMovie;
   date: string;
-  time: string;
-  venue: string;
-  address: string;
+  hours: string;
+  local: string;
   capacity: number;
-  ticketPrice: number;
+  price: number;
   status: EventStatus;
   availableTickets: number;
   organizerId: string;
@@ -22,15 +25,12 @@ export interface FirestoreEvent {
 
 export interface Event {
   id: string;
-  title: string;
-  description: string;
-  imageUrl: string;
+  movie: EventMovie;
   date: string;
-  time: string;
-  venue: string;
-  address: string;
+  hours: string;
+  local: string;
   capacity: number;
-  ticketPrice: number;
+  price: number;
   status: EventStatus;
   availableTickets: number;
   organizerId: string;
@@ -43,13 +43,10 @@ export interface EventWithAvailability extends Event {
 }
 
 export interface CreateEventInput {
-  title: string;
-  description: string;
-  imageUrl: string;
+  movie: EventMovie;
   date: string;
-  time: string;
-  venue: string;
-  address: string;
+  hours: string;
+  local: string;
   capacity: number;
-  ticketPrice: number;
+  price: number;
 }

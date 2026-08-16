@@ -5,6 +5,7 @@ import { swagger } from "@elysiajs/swagger";
 import { eventRoutes } from "./modules/events/event.routes";
 import { ticketRoutes } from "./modules/tickets/ticket.routes";
 import { organizerRoutes } from "./modules/organizer/organizer.routes";
+import { movieRoutes } from "./modules/movies/movie.routes";
 
 export const app = new Elysia()
   .use(
@@ -24,6 +25,7 @@ export const app = new Elysia()
           { name: "Ingressos", description: "Compra e consulta de ingressos" },
           { name: "Organizador", description: "Área do organizador" },
           { name: "Portaria", description: "Validação de ingressos" },
+          { name: "Filmes", description: "Consulta de filmes recomendados" },
         ],
       },
     })
@@ -34,4 +36,5 @@ export const app = new Elysia()
       .use(eventRoutes)
       .use(ticketRoutes)
       .use(organizerRoutes)
+      .use(movieRoutes)
   );

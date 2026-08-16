@@ -10,9 +10,9 @@ export async function listPublishedEvents(
   const filtered = search
     ? events.filter(
         (e) =>
-          e.title.toLowerCase().includes(search.toLowerCase()) ||
-          e.description.toLowerCase().includes(search.toLowerCase()) ||
-          e.venue.toLowerCase().includes(search.toLowerCase())
+          e.movie.name.toLowerCase().includes(search.toLowerCase()) ||
+          e.movie.description.toLowerCase().includes(search.toLowerCase()) ||
+          e.local.toLowerCase().includes(search.toLowerCase())
       )
     : events;
 
@@ -106,7 +106,7 @@ export async function getOrganizerStats(organizerId: string) {
   const now = new Date();
   const upcomingEvents = events.filter((e) => {
     if (e.status !== "published") return false;
-    const eventDate = new Date(`${e.date}T${e.time}`);
+    const eventDate = new Date(`${e.date}T${e.hours}`);
     return eventDate > now;
   }).length;
 

@@ -22,9 +22,9 @@ bun install
 bun dev
 ```
 
-O servidor sobe em `http://localhost:3001` por padrão.
+O servidor sobe em `http://localhost:3000` por padrão (porta configurável via `PORT`).
 
-A documentação Swagger fica disponível em `http://localhost:3001/docs`.
+A documentação Swagger fica disponível em `http://localhost:3000/docs` e há redirect de `/swagger` para `/docs`.
 
 ## Variáveis de ambiente
 
@@ -37,11 +37,11 @@ cp .env.example .env
 | Variável | Descrição |
 |----------|-----------|
 | `PORT` | Porta do servidor (padrão: `3000`) |
-| `CORS_ORIGIN` | Origem permitida pelo CORS (ex: `http://localhost:3001`) |
-| `ORGANIZER_ID` | ID do organizador mockado (enquanto não há autenticação) |
+| `BUN_VERSION` | Versão do Bun usada em runtimes nativos (padrão no Render: `1.3.14`) |
+| `ORGANIZER_ID` | ID do organizador padrão (enquanto não há autenticação) |
 | `FIREBASE_PROJECT_ID` | ID do projeto no Firebase |
-| `FIREBASE_CLIENT_EMAIL` | E-mail da conta de serviço |
-| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço (com `\n` escapados) |
+| `FIREBASE_CLIENT_EMAIL` | E-mail da conta de serviço do Firebase Admin |
+| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço (com `\n` escapados)
 
 ### Como obter as credenciais do Firebase
 
@@ -103,7 +103,6 @@ Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infrae
 | Variável | Exemplo / dica |
 |---|---|
 | `PORT` | `3000` (porta exposta no Dockerfile) |
-| `CORS_ORIGIN` | Ex: `https://seu-frontend.onrender.com` ou `*` em testes |
 | `ORGANIZER_ID` | ID do organizador padrão (enquanto sem auth) |
 | `FIREBASE_PROJECT_ID` | `meu-projeto-123ab` |
 | `FIREBASE_CLIENT_EMAIL` | `firebase-adminsdk@meu-projeto-123ab.iam.gserviceaccount.com` |
@@ -117,7 +116,7 @@ Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infrae
 
 - **Cold starts:** Render pausa serviços do plano Starter sem tráfego por 15 min. O primeiro request pode demorar ~5–15s; os demais são rápidos. Para evitar, suba para plano de pagamento ou configure um ping cron (UptimeRobot etc.).
 - **Firebase Private Key:** Copie exatamente o valor do JSON baixado. Não precisa escapar quebras de linha manualmente, o setup já trata isso.
-- **Bun.lock:** O Dockerfile usa `bun install --frozen-lockfile`. **Sempre** rode `bun install` após mudar dependências para atualizar o `bun.lockb` (ou builds falharão).
+- **Bun.lock:** O Dockerfile usa `bun install --frozen-lockfile` **se existir** `bun.lock` textual ou `bun.lockb` binário. **Sempre** rode `bun install` após mudar dependências para atualizar o lockfile (ou builds falharão).
 - **`render.yaml` Blueprint:** Ele foi criado com runtime `docker`. Se você quiser testar o runtime **Bun nativo** do Render (beta), remova o `runtime: docker` e use `buildCommand: bun install` + `startCommand: bun start`.
 
 ---
@@ -129,10 +128,11 @@ Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infrae
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | `GET` | `/api/events` | Listar eventos publicados |
-| `GET` | `/api/events?search=festival` | Buscar eventos por termo |
-| `GET` | `/api/events/:id` | Detalhes de um evento |
-| `POST` | `/api/events` | Criar novo evento |
-| `PATCH` | `/api/events/:id/publish` | Publicar evento |
+| `GET` | `/api/events?search=festival` | Buscar eventos por termo (title / description / venue) |
+| `GET` | `/api/events/:id` | Detalhes de um evento com total de ingressos vendidos |
+| `POST` | `/api/events` | Criar novo evento (status inicial: `draft`) |
+| `PATCH` | `/api/events/:id/publish` | Publicar evento (muda status para `published`) |
+| `DELETE` | `/api/events/:id` | Excluir evento (apenas organizador, sem ingressos vendidos) |
 
 ### Organizador
 
@@ -145,9 +145,9 @@ Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infrae
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `POST` | `/api/events/:id/tickets` | Comprar ingresso |
-| `GET` | `/api/tickets/:id` | Consultar ingresso |
-| `POST` | `/api/tickets/:code/validate` | Validar ingresso (portaria) |
+| `POST` | `/api/events/:id/tickets` | Comprar ingresso para evento publicado |
+| `GET` | `/api/tickets/:id` | Consultar ingresso (com dados do evento aninhados) |
+| `POST` | `/api/tickets/:code/validate` | Validar ingresso por código (portaria) |
 
 ## Exemplos
 
@@ -238,7 +238,29 @@ PATCH /api/events/abc123/publish
 
 ---
 
+### Excluir evento
+
+**Regras:** só o organizador do evento pode excluir; não é permitido excluir evento que já tenha ingressos vendidos.
+
+```bash
+DELETE /api/events/abc123
+```
+
+Sucesso → `204 No Content` (sem corpo).
+
+Cenários de erro:
+- Evento não encontrado → **404** `EVENT_NOT_FOUND`
+- Organizador diferente → **403** `FORBIDDEN`
+- Já há ingressos vendidos → **409** `EVENT_HAS_TICKETS`
+
+---
+
 ### Comprar ingresso
+
+**Regras:**
+- Evento deve estar com status `published`
+- Deve haver `availableTickets` suficiente para a `quantity`
+- Os valores `availableTickets` são decrementados de forma atômica dentro de uma transação do Firestore
 
 ```bash
 POST /api/events/abc123/tickets
@@ -261,13 +283,22 @@ Resposta `201 Created`:
   "buyerEmail": "joao@email.com",
   "quantity": 2,
   "totalPrice": 179.80,
-  "status": "valid"
+  "status": "valid",
+  "createdAt": "2026-08-16T10:00:00.000Z",
+  "updatedAt": "2026-08-16T10:00:00.000Z"
 }
 ```
+
+Possíveis erros:
+- Evento não publicado → **400** `EVENT_NOT_PUBLISHED`
+- Todos os ingressos vendidos (`availableTickets <= 0`) → **409** `EVENT_SOLD_OUT`
+- Quantidade maior que ingressos disponíveis → **409** `INSUFFICIENT_CAPACITY`
 
 ---
 
 ### Consultar ingresso
+
+Retorna o ingresso com **dados do evento aninhados**.
 
 ```bash
 GET /api/tickets/ticket-123
@@ -277,16 +308,29 @@ GET /api/tickets/ticket-123
 {
   "id": "ticket-123",
   "code": "EVT-8F3K92",
+  "eventId": "abc123",
   "buyerName": "João Silva",
+  "buyerEmail": "joao@email.com",
   "quantity": 2,
   "totalPrice": 179.80,
   "status": "valid",
+  "createdAt": "2026-08-16T10:00:00.000Z",
+  "updatedAt": "2026-08-16T10:00:00.000Z",
   "event": {
     "id": "abc123",
     "title": "Festival de Música Maranhense",
+    "description": "Uma noite dedicada à música maranhense.",
     "date": "2026-09-20",
     "time": "20:00",
-    "venue": "Centro de Convenções"
+    "venue": "Centro de Convenções",
+    "address": "São Luís - MA",
+    "capacity": 1000,
+    "ticketPrice": 89.90,
+    "availableTickets": 450,
+    "status": "published",
+    "organizerId": "default-organizer",
+    "createdAt": "2026-08-01T12:00:00.000Z",
+    "updatedAt": "2026-08-16T10:00:00.000Z"
   }
 }
 ```
@@ -295,21 +339,28 @@ GET /api/tickets/ticket-123
 
 ### Validar ingresso (portaria)
 
+Valida o ingresso pelo código. Se válido e ainda não usado, **marca como `used`** (atômico) e retorna os dados.
+
 ```bash
 POST /api/tickets/EVT-8F3K92/validate
 ```
 
-Ingresso válido:
+Ingresso válido (primeira utilização):
 ```json
 {
   "valid": true,
   "ticket": {
     "id": "ticket-123",
     "code": "EVT-8F3K92",
+    "status": "used",
     "buyerName": "João Silva",
+    "buyerEmail": "joao@email.com",
+    "eventId": "abc123",
     "event": {
       "id": "abc123",
-      "title": "Festival de Música Maranhense"
+      "title": "Festival de Música Maranhense",
+      "date": "2026-09-20",
+      "time": "20:00"
     }
   }
 }
@@ -320,6 +371,42 @@ Ingresso já utilizado:
 {
   "valid": false,
   "message": "Ingresso já utilizado."
+}
+```
+
+Ingresso não encontrado:
+```json
+{
+  "valid": false,
+  "message": "Ingresso não encontrado."
+}
+```
+
+### Listar eventos do organizador
+
+```bash
+GET /api/organizer/events
+```
+
+```json
+{
+  "data": [
+    {
+      "id": "abc123",
+      "title": "Festival de Música Maranhense",
+      "status": "published",
+      "availableTickets": 450,
+      "capacity": 1000,
+      "ticketPrice": 89.90,
+      "date": "2026-09-20",
+      "time": "20:00",
+      "venue": "Centro de Convenções",
+      "organizerId": "default-organizer",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-08-16T10:00:00.000Z"
+    }
+  ],
+  "total": 1
 }
 ```
 
@@ -343,12 +430,24 @@ GET /api/organizer/stats
 
 ## Códigos de erro
 
-| HTTP | Código | Descrição |
-|------|--------|-----------|
-| 400 | `EVENT_NOT_PUBLISHED` | Evento não está publicado |
+Todas as respostas de erro seguem o formato:
+```json
+{
+  "error": { "code": "CODIGO", "message": "Mensagem descritiva." }
+}
+```
+
+| HTTP | Código | Gatilho |
+|------|--------|---------|
+| 400 | `EVENT_NOT_PUBLISHED` | Tentativa de compra em evento com status `draft` |
+| 400 | `BAD_REQUEST` | Parâmetro inválido (campo de rota / request) |
+| 403 | `FORBIDDEN` | Usuário (ORGANIZER_ID) não é dono do recurso |
 | 404 | `EVENT_NOT_FOUND` | Evento não encontrado |
 | 404 | `TICKET_NOT_FOUND` | Ingresso não encontrado |
-| 409 | `INSUFFICIENT_CAPACITY` | Ingressos insuficientes |
+| 409 | `INSUFFICIENT_CAPACITY` | Quantidade solicitada > `availableTickets` |
+| 409 | `EVENT_SOLD_OUT` | `availableTickets <= 0` no momento da compra |
+| 409 | `EVENT_HAS_TICKETS` | Tentativa de excluir evento com ingressos vendidos |
+| 409 | `TICKET_ALREADY_USED` | Ingresso já utilizado (validação da portaria) |
 | 500 | `INTERNAL_ERROR` | Erro interno do servidor |
 
 ## Estrutura do projeto
@@ -356,24 +455,47 @@ GET /api/organizer/stats
 ```
 src/
 ├── config/
-│   └── firebase.ts           # Inicialização Firebase Admin
+│   └── firebase.ts                 # Inicialização Firebase Admin + Firestore
 ├── modules/
 │   ├── events/
-│   │   ├── event.types.ts
-│   │   ├── event.schema.ts
-│   │   ├── event.repository.ts
-│   │   ├── event.service.ts
-│   │   └── event.routes.ts
+│   │   ├── event.types.ts          # Modelos: FirestoreEvent (banco) vs Event (API)
+│   │   ├── event.schema.ts         # Validação de entrada (Elysia type-box)
+│   │   ├── event.repository.ts     # Acesso direto ao Firestore + serialização de datas
+│   │   ├── event.service.ts        # Regras de negócio (disponibilidade, deleção, stats)
+│   │   └── event.routes.ts         # Endpoints HTTP de eventos
 │   ├── tickets/
-│   │   ├── ticket.types.ts
-│   │   ├── ticket.schema.ts
-│   │   ├── ticket.repository.ts
-│   │   ├── ticket.service.ts
-│   │   └── ticket.routes.ts
+│   │   ├── ticket.types.ts         # Modelos: FirestoreTicket vs Ticket
+│   │   ├── ticket.schema.ts        # Validação de entrada de compra
+│   │   ├── ticket.repository.ts    # Criação, busca, contagem e marcação used
+│   │   ├── ticket.service.ts       # Compra transacional, validação portaria
+│   │   └── ticket.routes.ts        # Endpoints HTTP de ingressos
 │   └── organizer/
-│       └── organizer.routes.ts
+│       └── organizer.routes.ts     # Rotas /api/organizer (events + stats)
 ├── shared/
-│   └── errors.ts
-├── app.ts
-└── index.ts
+│   ├── errors.ts                   # Helpers: notFound, badRequest, conflict, internalError
+│   ├── serialize.ts                # Conversão Timestamp → ISO string (record, records, deep)
+│   └── serialize.test.ts           # Testes da serialização
+├── app.ts                          # App Elysia + Swagger + agrupamento de rotas
+├── app.test.ts                     # Testes de integração das rotas
+└── index.ts                        # Bootstrap: inicializa Firebase, listen na PORT
 ```
+
+### Padrões e convenções de código
+
+- **Tipos separados (Banco vs API):** todo modelo tem prefixo `Firestore*` quando representa o documento bruto do Firestore (com `Timestamp`), e nome puro quando representa a resposta serializada da API (com datas ISO). Ex: `FirestoreEvent` → `Event`, `FirestoreTicket` → `Ticket`.
+- **Serialização central:** toda normalização de datas passa por [serialize.ts](file:///c:/Users/vinia/projects/event-challenge-api/src/shared/serialize.ts) (`serializeRecord`, `serializeRecords`, `serializeDeep`), evitando retornar `Timestamp` do Firestore nas respostas.
+- **Índices compostos:** quando uma consulta combina `where` + `orderBy` e exigiria índice manual do Firestore (que pode causar 500 em ambientes novos), opta-se por ordenação em memória no repository.
+- **Convenção de portas:** produção e desenvolvimento usam a variável `PORT` (padrão `3000`). Não existem portas hardcoded.
+- **Transações:** compra de ingresso roda dentro de `db.runTransaction()` (atômica) — decremento de `availableTickets` e criação do ticket são confirmados juntos ou revertidos juntos.
+
+---
+
+## Testes
+
+```bash
+bun test
+```
+
+Cobertura atual:
+- `src/app.test.ts` — 15 testes de integração cobrindo eventos, ingressos, organizador e portaria.
+- `src/shared/serialize.test.ts` — 4 testes unitários cobrindo serialização de datas (record, records, objetos aninhados, campos já serializados).

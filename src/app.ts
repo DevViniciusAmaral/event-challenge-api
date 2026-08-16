@@ -6,14 +6,9 @@ import { eventRoutes } from "./modules/events/event.routes";
 import { ticketRoutes } from "./modules/tickets/ticket.routes";
 import { organizerRoutes } from "./modules/organizer/organizer.routes";
 
-const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:3000";
-
 export const app = new Elysia()
   .use(
-    cors({
-      origin: "*",
-    })
-  )
+    cors({ origin: "*" }))
   .use(
     swagger({
       path: "/docs",

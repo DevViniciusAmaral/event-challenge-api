@@ -9,6 +9,10 @@ API backend da plataforma de eventos e ingressos, desenvolvida como parte de um 
 - **[TypeScript](https://www.typescriptlang.org)** — tipagem estática
 - **[Firebase Admin SDK](https://firebase.google.com/docs/admin/setup)** — acesso seguro ao Firebase
 - **[Cloud Firestore](https://firebase.google.com/docs/firestore)** — banco de dados
+- **[@elysiajs/cors](https://elysiajs.com/plugins/cors)** — middleware CORS
+- **[@elysiajs/swagger](https://elysiajs.com/plugins/swagger)** — documentação OpenAPI / Swagger UI
+- **[Axios](https://axios-http.com)** — cliente HTTP para integração com APIs externas
+- **[TasteDive API](https://tastedive.com/read/api)** — serviço de recomendação de filmes
 
 ## Instalação
 
@@ -20,6 +24,12 @@ bun install
 
 ```bash
 bun dev
+```
+
+Em produção:
+
+```bash
+bun start
 ```
 
 O servidor sobe em `http://localhost:3001` por padrão (porta configurável via `PORT`).
@@ -36,12 +46,14 @@ cp .env.example .env
 
 | Variável | Descrição |
 |----------|-----------|
-| `PORT` | Porta do servidor (padrão: `3000`) |
+| `PORT` | Porta do servidor (padrão: `3001`) |
 | `BUN_VERSION` | Versão do Bun usada em runtimes nativos (padrão no Render: `1.3.14`) |
 | `ORGANIZER_ID` | ID do organizador padrão (enquanto não há autenticação) |
 | `FIREBASE_PROJECT_ID` | ID do projeto no Firebase |
 | `FIREBASE_CLIENT_EMAIL` | E-mail da conta de serviço do Firebase Admin |
-| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço (com `\n` escapados)
+| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço (com `\n` escapados) |
+| `TASTE_DIVE_API_URL` | URL base da API TasteDive (ex: `https://tastedive.com/api/similar`) |
+| `TASTE_DIVE_API_KEY` | Chave de API do TasteDive para consulta de filmes |
 
 ### Como obter as credenciais do Firebase
 
@@ -102,11 +114,13 @@ Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infrae
 
 | Variável | Exemplo / dica |
 |---|---|
-| `PORT` | `3000` (porta exposta no Dockerfile) |
+| `PORT` | `3001` (porta exposta no Dockerfile) |
 | `ORGANIZER_ID` | ID do organizador padrão (enquanto sem auth) |
 | `FIREBASE_PROJECT_ID` | `meu-projeto-123ab` |
 | `FIREBASE_CLIENT_EMAIL` | `firebase-adminsdk@meu-projeto-123ab.iam.gserviceaccount.com` |
 | `FIREBASE_PRIVATE_KEY` | **Cole a chave JSON inteira** (com `\n` ou quebras de linha). O código já faz `.replace(/\\n/g, "\n")`. |
+| `TASTE_DIVE_API_URL` | `https://tastedive.com/api/similar` |
+| `TASTE_DIVE_API_KEY` | Chave de API obtida no dashboard do TasteDive |
 
 5. **Health check:** O Render usará o caminho `/docs/json` (Swagger OpenAPI JSON) que sempre retorna `200`. Alternativamente, pode trocar por `/api/events` se preferir.
 
@@ -148,6 +162,12 @@ Além disso, há um `render.yaml` (Blueprint) para criar o serviço via **Infrae
 | `POST` | `/api/events/:id/tickets` | Comprar ingresso para evento publicado |
 | `GET` | `/api/tickets/:id` | Consultar ingresso (com dados do evento aninhados) |
 | `POST` | `/api/tickets/:code/validate` | Validar ingresso por código (portaria) |
+
+### Filmes
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `GET` | `/api/movies` | Listar filmes recomendados via TasteDive API |
 
 ## Exemplos
 
@@ -428,6 +448,29 @@ GET /api/organizer/stats
 }
 ```
 
+---
+
+### Listar filmes recomendados
+
+Consome a **TasteDive API** para buscar recomendações de filmes.
+
+```bash
+GET /api/movies
+```
+
+```json
+[
+  {
+    "name": "Inception",
+    "description": "A thief who steals corporate secrets through dream-sharing technology..."
+  },
+  {
+    "name": "Interstellar",
+    "description": "A team of explorers travel through a wormhole in space..."
+  }
+]
+```
+
 ## Códigos de erro
 
 Todas as respostas de erro seguem o formato:
@@ -455,7 +498,8 @@ Todas as respostas de erro seguem o formato:
 ```
 src/
 ├── config/
-│   └── firebase.ts                 # Inicialização Firebase Admin + Firestore
+│   ├── firebase.ts                 # Inicialização Firebase Admin + Firestore
+│   └── tastedive.ts                # Cliente Axios + integração TasteDive API (getMovies)
 ├── modules/
 │   ├── events/
 │   │   ├── event.types.ts          # Modelos: FirestoreEvent (banco) vs Event (API)
@@ -469,8 +513,12 @@ src/
 │   │   ├── ticket.repository.ts    # Criação, busca, contagem e marcação used
 │   │   ├── ticket.service.ts       # Compra transacional, validação portaria
 │   │   └── ticket.routes.ts        # Endpoints HTTP de ingressos
-│   └── organizer/
-│       └── organizer.routes.ts     # Rotas /api/organizer (events + stats)
+│   ├── organizer/
+│   │   └── organizer.routes.ts     # Rotas /api/organizer (events + stats)
+│   └── movies/
+│       ├── movie.type.ts           # Modelo Movie (name + description)
+│       ├── movie.service.ts        # listMovies via cliente tasteDiv
+│       └── movie.routes.ts         # Endpoint GET /api/movies (tag "Filmes")
 ├── shared/
 │   ├── errors.ts                   # Helpers: notFound, badRequest, conflict, internalError
 │   ├── serialize.ts                # Conversão Timestamp → ISO string (record, records, deep)
@@ -485,8 +533,9 @@ src/
 - **Tipos separados (Banco vs API):** todo modelo tem prefixo `Firestore*` quando representa o documento bruto do Firestore (com `Timestamp`), e nome puro quando representa a resposta serializada da API (com datas ISO). Ex: `FirestoreEvent` → `Event`, `FirestoreTicket` → `Ticket`.
 - **Serialização central:** toda normalização de datas passa por [serialize.ts](file:///c:/Users/vinia/projects/event-challenge-api/src/shared/serialize.ts) (`serializeRecord`, `serializeRecords`, `serializeDeep`), evitando retornar `Timestamp` do Firestore nas respostas.
 - **Índices compostos:** quando uma consulta combina `where` + `orderBy` e exigiria índice manual do Firestore (que pode causar 500 em ambientes novos), opta-se por ordenação em memória no repository.
-- **Convenção de portas:** produção e desenvolvimento usam a variável `PORT` (padrão `3000`). Não existem portas hardcoded.
+- **Convenção de portas:** produção e desenvolvimento usam a variável `PORT` (padrão `3001`). Não existem portas hardcoded.
 - **Transações:** compra de ingresso roda dentro de `db.runTransaction()` (atômica) — decremento de `availableTickets` e criação do ticket são confirmados juntos ou revertidos juntos.
+- **Integrações externas:** APIs externas (como a TasteDive) são encapsuladas em clientes em `src/config/` e consumidas via serviços do módulo. O cliente `tasteDiv` em [tastedive.ts](file:///c:/Users/vinia/projects/event-challenge-api/src/config/tastedive.ts) usa Axios com `baseURL` e `apiKey` vindos de variáveis de ambiente.
 
 ---
 

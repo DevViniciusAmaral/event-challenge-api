@@ -4,7 +4,6 @@ export type EventStatus = "draft" | "published";
 
 export interface EventMovie {
   name: string;
-  youtubeUrl: string;
   description: string;
 }
 

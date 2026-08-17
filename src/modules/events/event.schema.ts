@@ -4,7 +4,6 @@ export const createEventSchema = t.Object({
   movie: t.Object(
     {
       name: t.String({ minLength: 1, description: "Nome do filme" }),
-      youtubeUrl: t.String({ minLength: 1, description: "URL do trailer no YouTube" }),
       description: t.String({ minLength: 1, description: "Descrição do filme" }),
     },
     { description: "Dados do filme do evento" }

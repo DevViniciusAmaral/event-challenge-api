@@ -6,7 +6,6 @@ export async function listMovies(): Promise<Movie[]> {
 
   return results.map((result) => ({
     name: result.name,
-    youtubeUrl: result.yUrl,
     description: result.description,
   }));
 }

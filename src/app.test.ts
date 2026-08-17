@@ -51,7 +51,7 @@ describe("App routes", () => {
       data: [
         {
           id: "event-1",
-          movie: { name: "Matrix", youtubeUrl: "https://youtu.be/abc", description: "Filme" },
+          movie: { name: "Matrix", description: "Filme" },
           date: "2026-12-20",
           hours: "20:00",
           local: "Cinema",
@@ -68,7 +68,7 @@ describe("App routes", () => {
       id === "event-1"
         ? {
             id,
-            movie: { name: "Matrix", youtubeUrl: "https://youtu.be/abc", description: "Filme" },
+            movie: { name: "Matrix", description: "Filme" },
             date: "2026-12-20",
             hours: "20:00",
             local: "Cinema Central",
@@ -102,7 +102,7 @@ describe("App routes", () => {
     listOrganizerEventsImpl = async () => [
       {
         id: "event-1",
-        movie: { name: "Matrix", youtubeUrl: "https://youtu.be/abc", description: "Filme" },
+        movie: { name: "Matrix", description: "Filme" },
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
@@ -226,7 +226,6 @@ describe("App routes", () => {
         body: JSON.stringify({
           movie: {
             name: "Matrix",
-            youtubeUrl: "https://youtu.be/abc",
             description: "Clássico de ficção científica",
           },
           date: "2026-12-20",

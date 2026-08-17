@@ -29,7 +29,7 @@ export const tasteDiveApi = axios.create({
 
 export const tasteDiv = {
     getMovies: async () => {
-        const { data } = await tasteDiveApi.get<ShowResponse>(`?q=movie&type=movie&info=1&slimit=10&limit=10`)
+        const { data } = await tasteDiveApi.get<ShowResponse>(`?q=movie&type=movie&info=1&slimit=1&limit=10`)
         return data.similar.results
     }
 }

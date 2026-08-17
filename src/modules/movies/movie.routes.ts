@@ -9,6 +9,7 @@ export const movieRoutes = new Elysia({ prefix: "/movies" }).get(
       const movies = await movieService.listMovies();
       return movies;
     } catch (err) {
+      console.log(err)
       set.status = 500;
       return internalError();
     }

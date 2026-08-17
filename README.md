@@ -22,9 +22,9 @@ bun install
 bun dev
 ```
 
-O servidor sobe em `http://localhost:3000` por padrão (porta configurável via `PORT`).
+O servidor sobe em `http://localhost:3001` por padrão (porta configurável via `PORT`).
 
-A documentação Swagger fica disponível em `http://localhost:3000/docs` e há redirect de `/swagger` para `/docs`.
+A documentação Swagger fica disponível em `http://localhost:3001/docs` e há redirect de `/swagger` para `/docs`.
 
 ## Variáveis de ambiente
 
